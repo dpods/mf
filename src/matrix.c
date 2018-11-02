@@ -122,7 +122,6 @@ void matrix_factorize(double** R, double** P, double** Q, int N, int M, int K) {
 	matrix_transpose(QT, Q, M, K);
 
 	int step, i, j, h;
-	double** eR = (double **) matrix_malloc(N, M * sizeof(double));
 	for (step = 0; step < steps; step++) {
 		for (i = 0; i < N; i++) {
 			for (j = 0; j < M; j++) {
@@ -145,8 +144,6 @@ void matrix_factorize(double** R, double** P, double** Q, int N, int M, int K) {
 				}
 			}
 		}
-
-		matrix_dot_product(eR, P, QT, K, N, M);
 
 		double e = 0.0;
 
@@ -172,8 +169,6 @@ void matrix_factorize(double** R, double** P, double** Q, int N, int M, int K) {
 			break;
 		}
 	}
-
-	matrix_free((void**)eR);
 
 	double** rN = (double **) matrix_malloc(N, M * sizeof(double));
 
