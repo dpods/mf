@@ -7,8 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <memory.h>
 
 #include "matrix.h"
+#include "str.h"
 
 double randomDouble()
 {
@@ -25,7 +27,88 @@ void fill_matrix(double** arr, int N, int M) {
 	}
 }
 
-int main() {
+size_t get_line_width() {
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+
+	fp = fopen("./matrix.csv", "r");
+	if (fp == NULL) {
+		exit(EXIT_FAILURE);
+	}
+
+	getline(&line, &len, fp);
+
+	size_t i;
+	for (i=0; line[i]; line[i]==',' ? i++ : *line++);
+	return i + 1;
+}
+
+size_t get_line_count() {
+	FILE * fp;
+	char * line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	size_t lines = 0;
+
+	fp = fopen("./matrix.csv", "r");
+	if (fp == NULL) {
+		exit(EXIT_FAILURE);
+	}
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		lines++;
+	}
+
+	fclose(fp);
+
+	if (line) {
+		free(line);
+	}
+
+	return lines;
+}
+
+void populate_matrix_from_file(double **matrix, size_t cols) {
+	FILE * fp;
+	char * line = NULL;
+	size_t len = 0;
+	ssize_t read;
+
+	fp = fopen("./matrix.csv", "r");
+	if (fp == NULL) {
+		exit(EXIT_FAILURE);
+	}
+
+	int col;
+	int row = 0;
+	while ((read = getline(&line, &len, fp)) != -1) {
+		// Remove newline char at end of string
+		trim(line, '\n');
+
+		// Split line by the delimeter
+		char **dest = malloc(sizeof(char *) * cols);
+		split(dest, line, ",");
+
+		// Add values to matrix and cast to double
+		for (col = 0; col < cols; col++) {
+			matrix[row][col] = atof(dest[col]);
+		}
+
+		row++;
+	}
+
+	fclose(fp);
+
+	if (line) {
+		free(line);
+	}
+}
+
+int main(int argc, char **argv) {
+	size_t cols = get_line_width();
+	size_t rows = get_line_count();
+
 	// seed random number generator
 	srand(time(NULL));
 
@@ -33,48 +116,17 @@ int main() {
 	double **P;
 	double **Q;
 
-	size_t N = 7;
-	size_t M = 4;
+	size_t N = rows;
+	size_t M = cols;
 	size_t K = 2;
 
 	R = (double **) matrix_malloc(N, M * sizeof(double));
 
-	R[0][0] = 5;
-	R[0][1] = 3;
-	R[0][2] = 0;
-	R[0][3] = 1;
+	populate_matrix_from_file(R, cols);
 
-	R[1][0] = 4;
-	R[1][1] = 0;
-	R[1][2] = 0;
-	R[1][3] = 1;
+	matrix_print("R", R, N, M);
+	return 0;
 
-	R[2][0] = 1;
-	R[2][1] = 1;
-	R[2][2] = 0;
-	R[2][3] = 5;
-
-	R[3][0] = 1;
-	R[3][1] = 0;
-	R[3][2] = 0;
-	R[3][3] = 4;
-
-	R[4][0] = 0;
-	R[4][1] = 1;
-	R[4][2] = 5;
-	R[4][3] = 4;
-
-	R[5][0] = 4;
-	R[5][1] = 0;
-	R[5][2] = 0;
-	R[5][3] = 2;
-
-	R[6][0] = 1;
-	R[6][1] = 0;
-	R[6][2] = 0;
-	R[6][3] = 4;
-
-//	matrix_print("R", R, N, M);
 //
 //	printf("N: %d\n", N);
 //	printf("M: %d\n", M);

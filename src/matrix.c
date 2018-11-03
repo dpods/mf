@@ -100,8 +100,6 @@ void matrix_print(char *str, double** p, int N, int M) {
 		}
 		printf("\n");
 	}
-
-	printf("\n");
 }
 
 /**
