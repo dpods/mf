@@ -37,7 +37,7 @@ size_t get_line_width(FILE *fp) {
 	getline(&line, &len, fp);
 
 	size_t i;
-	for (i=0; line[i]; line[i]==',' ? i++ : *line++);
+	for (i=0; line[i]; line[i] == ',' ? i++ : *line++);
 
 	return i + 1;
 }
@@ -66,6 +66,7 @@ void populate_matrix_from_file(double **matrix, size_t cols, FILE *fp) {
 
 	int col;
 	int row = 0;
+
 	while ((read = getline(&line, &len, fp)) != -1) {
 		// Remove newline char at end of string
 		trim(line, '\n');
@@ -88,14 +89,13 @@ void populate_matrix_from_file(double **matrix, size_t cols, FILE *fp) {
 }
 
 int main(int argc, char **argv) {
-	int n;
 	bool verbose = false;
 	char *option, *value;
-	FILE *fp_in, *fp_out;
 
-	fp_in = stdin;
-	fp_out = stdout;
+	FILE *fp_in = NULL;
+	FILE *fp_out = stdout;
 
+	int n;
 	for( n = 1; n < argc; n = n + 2 )
 	{
 		option = argv[n];
@@ -133,16 +133,19 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	size_t cols = get_line_width(fp_in);
-	size_t rows = get_line_count(fp_in);
-
-	// seed random number generator
-	srand(time(NULL));
+	if ( fp_in == NULL )
+	{
+		puts( "No input file specified." );
+		exit( 0 );
+	}
 
 	double **R;
 	double **P;
 	double **Q;
 	double **rN;
+
+	size_t cols = get_line_width(fp_in);
+	size_t rows = get_line_count(fp_in);
 
 	size_t N = rows;
 	size_t M = cols;
@@ -164,6 +167,9 @@ int main(int argc, char **argv) {
 	{
 		matrix_print("input", R, N, M);
 	}
+
+	// seed random number generator
+	srand(time(NULL));
 
 	P = (double **) matrix_malloc(N, K * sizeof(double));
 	fill_matrix(P, N, K);
@@ -205,7 +211,7 @@ int main(int argc, char **argv) {
 		fprintf(fp_out, "\n");
 	}
 
-	/* All done, close up shop. */
+	// All done, close up shop.
 	matrix_free((void**)R);
 	matrix_free((void**)P);
 	matrix_free((void**)Q);
