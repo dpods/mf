@@ -104,7 +104,6 @@ int main(int argc, char **argv) {
 		switch ( (int) option[1] )
 		{
 			case 'i':
-			case 'I':
 				if ( ( fp_in = fopen(value, "r")) == NULL )
 				{
 					puts( "Can't open input file.\n" );
@@ -114,7 +113,6 @@ int main(int argc, char **argv) {
 				break;
 
 			case 'o':
-			case 'O':
 				if ( ( fp_out = fopen( value, "w" )) == NULL )
 				{
 					puts( "Can't open output file.\n" );
@@ -123,7 +121,6 @@ int main(int argc, char **argv) {
 				break;
 
 			case 'v':
-			case 'V':
 				verbose = true;
 				break;
 
