@@ -1,32 +1,61 @@
-//
-// Created by David Glassanos on 11/3/18.
-//
-
 #include <stdio.h>
 #include <stdlib.h>
-#include "str.h"
+#include <string.h>
 
-int main() {
-	char *test;
-	test[0] = '1';
-	test[1] = '.';
-	test[2] = '0';
-	test[3] = ',';
-	test[4] = '2';
-	test[5] = '.';
-	test[6] = '2';
-	test[7] = ',';
-	test[8] = '3';
-	test[9] = ',';
-	test[10] = '9';
+#define MAX 256
 
-	char **dest = malloc(sizeof(char *) * 4);
+int main( int argc, char *argv[] )
+{
+	int n;
+	char *option, *value;
+	FILE *src, *dst;
 
-	split(dest, test, ",");
+	src = stdin;
+	dst = stdout;
 
-	for (int i = 0; i < 4; i++) {
-		printf("%s\n", dest[i]);
+	for( n = 1; n < argc; n = n + 2 )
+	{
+		option = argv[n];
+		value = argv[n + 1];
+
+		switch ( (int) option[1] )
+		{
+			case 'i':
+			case 'I':
+				if ( ( src = fopen( value, "r" )) == NULL )
+				{
+					puts( "Can't open input file.\n" );
+					exit( 0 );
+				}
+
+				break;
+
+			case 'o':
+			case 'O':
+				if ( ( dst = fopen( value, "w" )) == NULL )
+				{
+					puts( "Can't open output file.\n" );
+					exit( 0 );
+				}
+				break;
+
+			default:
+				printf( "Unknown option %s\n", option );
+				exit( 0 );
+		}
 	}
 
-	return 0;
+	char b[MAX];
+
+	/* Copy one file to the next. */
+
+	while( ( fgets( b, MAX, src ) ) != NULL )
+	{
+		fputs( b, dst );
+	}
+
+	/* All done, close up shop. */
+
+	fclose( src );
+	fclose( dst );
 }

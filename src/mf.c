@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <memory.h>
+#include <stdbool.h>
 
 #include "matrix.h"
 #include "str.h"
@@ -27,58 +28,41 @@ void fill_matrix(double** arr, int N, int M) {
 	}
 }
 
-size_t get_line_width() {
-	FILE *fp;
+size_t get_line_width(FILE *fp) {
+	fseek(fp, 0, SEEK_SET);
+
 	char *line = NULL;
 	size_t len = 0;
-
-	fp = fopen("./matrix.csv", "r");
-	if (fp == NULL) {
-		exit(EXIT_FAILURE);
-	}
 
 	getline(&line, &len, fp);
 
 	size_t i;
 	for (i=0; line[i]; line[i]==',' ? i++ : *line++);
+
 	return i + 1;
 }
 
-size_t get_line_count() {
-	FILE * fp;
+size_t get_line_count(FILE *fp) {
+	fseek(fp, 0, SEEK_SET);
+
 	char * line = NULL;
 	size_t len = 0;
 	ssize_t read;
 	size_t lines = 0;
 
-	fp = fopen("./matrix.csv", "r");
-	if (fp == NULL) {
-		exit(EXIT_FAILURE);
-	}
-
 	while ((read = getline(&line, &len, fp)) != -1) {
 		lines++;
-	}
-
-	fclose(fp);
-
-	if (line) {
-		free(line);
 	}
 
 	return lines;
 }
 
-void populate_matrix_from_file(double **matrix, size_t cols) {
-	FILE * fp;
-	char * line = NULL;
+void populate_matrix_from_file(double **matrix, size_t cols, FILE *fp) {
+	fseek(fp, 0, SEEK_SET);
+
+	char *line = NULL;
 	size_t len = 0;
 	ssize_t read;
-
-	fp = fopen("./matrix.csv", "r");
-	if (fp == NULL) {
-		exit(EXIT_FAILURE);
-	}
 
 	int col;
 	int row = 0;
@@ -98,16 +82,59 @@ void populate_matrix_from_file(double **matrix, size_t cols) {
 		row++;
 	}
 
-	fclose(fp);
-
 	if (line) {
 		free(line);
 	}
 }
 
 int main(int argc, char **argv) {
-	size_t cols = get_line_width();
-	size_t rows = get_line_count();
+	int n;
+	bool verbose = false;
+	char *option, *value;
+	FILE *fp_in, *fp_out;
+
+	fp_in = stdin;
+	fp_out = stdout;
+
+	for( n = 1; n < argc; n = n + 2 )
+	{
+		option = argv[n];
+		value = argv[n + 1];
+
+		switch ( (int) option[1] )
+		{
+			case 'i':
+			case 'I':
+				if ( ( fp_in = fopen(value, "r")) == NULL )
+				{
+					puts( "Can't open input file.\n" );
+					exit( 0 );
+				}
+
+				break;
+
+			case 'o':
+			case 'O':
+				if ( ( fp_out = fopen( value, "w" )) == NULL )
+				{
+					puts( "Can't open output file.\n" );
+					exit( 0 );
+				}
+				break;
+
+			case 'v':
+			case 'V':
+				verbose = true;
+				break;
+
+			default:
+				printf( "Unknown option %s\n", option );
+				exit( 0 );
+		}
+	}
+
+	size_t cols = get_line_width(fp_in);
+	size_t rows = get_line_count(fp_in);
 
 	// seed random number generator
 	srand(time(NULL));
@@ -115,6 +142,7 @@ int main(int argc, char **argv) {
 	double **R;
 	double **P;
 	double **Q;
+	double **rN;
 
 	size_t N = rows;
 	size_t M = cols;
@@ -122,30 +150,69 @@ int main(int argc, char **argv) {
 
 	R = (double **) matrix_malloc(N, M * sizeof(double));
 
-	populate_matrix_from_file(R, cols);
+	populate_matrix_from_file(R, cols, fp_in);
 
-	matrix_print("R", R, N, M);
-	return 0;
+	if ( verbose )
+	{
+		printf("rows: %zu\n", N);
+		printf("cols: %zu\n", M);
+		printf("K: %zu\n", K);
+		printf("\n");
+	}
 
-//
-//	printf("N: %d\n", N);
-//	printf("M: %d\n", M);
-//	printf("K: %d\n", K);
-//	printf("\n");
+	if ( verbose )
+	{
+		matrix_print("input", R, N, M);
+	}
 
 	P = (double **) matrix_malloc(N, K * sizeof(double));
 	fill_matrix(P, N, K);
-//	matrix_print("P", P, N, K);
+
+	if ( verbose )
+	{
+		matrix_print("P", P, N, K);
+	}
 
 	Q = (double **) matrix_malloc(M, K * sizeof(double));
 	fill_matrix(Q, M, K);
-//	matrix_print("Q", Q, M, K);
 
-	matrix_factorize(R, P, Q, N, M, K);
+	if ( verbose )
+	{
+		matrix_print("Q", Q, M, K);
+	}
 
+	rN = (double **) matrix_malloc(N, M * sizeof(double));
+
+	matrix_factorize(R, P, Q, rN, N, M, K);
+
+	int i;
+	int j;
+
+	for (i = 0; i < N; i++)
+	{
+		for (j = 0; j < M; j++)
+		{
+			if (j == 0)
+			{
+				fprintf(fp_out, "%f", rN[i][j]);
+			}
+			else
+			{
+				fprintf(fp_out, ",%f", rN[i][j]);
+			}
+		}
+
+		fprintf(fp_out, "\n");
+	}
+
+	/* All done, close up shop. */
 	matrix_free((void**)R);
 	matrix_free((void**)P);
 	matrix_free((void**)Q);
+	matrix_free((void**)rN);
+
+	fclose( fp_in );
+	fclose( fp_out );
 
 	return 0;
 }

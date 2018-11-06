@@ -93,6 +93,8 @@ void matrix_dot_product(double** dest, double** a, double** b, size_t k, size_t 
 }
 
 void matrix_print(char *str, double** p, int N, int M) {
+	printf("%s\n", str);
+	printf("------------------\n");
 	int i, j;
 	for(i = 0 ; i < N ; i++) {
 		for(j = 0 ; j < M ; j++) {
@@ -100,6 +102,8 @@ void matrix_print(char *str, double** p, int N, int M) {
 		}
 		printf("\n");
 	}
+
+	printf("\n");
 }
 
 /**
@@ -111,7 +115,7 @@ void matrix_print(char *str, double** p, int N, int M) {
  * @param M
  * @param K
  */
-void matrix_factorize(double** R, double** P, double** Q, int N, int M, int K) {
+void matrix_factorize(double** R, double** P, double** Q, double** rN, int N, int M, int K) {
 	int steps = 5000;
 	double alpha = 0.0002;
 	double beta = 0.02;
@@ -168,11 +172,8 @@ void matrix_factorize(double** R, double** P, double** Q, int N, int M, int K) {
 		}
 	}
 
-	double** rN = (double **) matrix_malloc(N, M * sizeof(double));
-
 	matrix_dot_product(rN, P, QT, K, N, M);
-	matrix_print("rN", rN, N, M);
+//	matrix_print("rN", rN, N, M);
 
 	matrix_free((void**)QT);
-	matrix_free((void**)rN);
 }
