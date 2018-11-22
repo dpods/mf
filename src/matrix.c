@@ -173,7 +173,6 @@ void matrix_factorize(double** R, double** P, double** Q, double** rN, int N, in
 	}
 
 	matrix_dot_product(rN, P, QT, K, N, M);
-//	matrix_print("rN", rN, N, M);
 
 	matrix_free((void**)QT);
 }
