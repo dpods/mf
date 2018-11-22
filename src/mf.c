@@ -1,14 +1,9 @@
-//
-// Created by David Glassanos on 10/23/18.
-//
-// Matrix Factorization
-//
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <memory.h>
-#include <stdbool.h>
+#include <math.h>
 
 #include "matrix.h"
 #include "str.h"
@@ -18,17 +13,17 @@ double randomDouble()
 	return (double) rand() / (double) RAND_MAX;
 }
 
-void fill_matrix(double** arr, int N, int M) {
+void fillMatrix(Matrix* matrix) {
 	int i, j;
 
-	for (i = 0; i < N; i++) {
-		for (j = 0; j < M; j++) {
-			arr[i][j] = randomDouble();
+	for (i = 0; i < matrix->rows; i++) {
+		for (j = 0; j < matrix->cols; j++) {
+			matrix->data[i][j] = randomDouble();
 		}
 	}
 }
 
-size_t get_line_width(FILE *fp) {
+int get_line_width(FILE *fp) {
 	fseek(fp, 0, SEEK_SET);
 
 	char *line = NULL;
@@ -36,19 +31,19 @@ size_t get_line_width(FILE *fp) {
 
 	getline(&line, &len, fp);
 
-	size_t i;
+	int i;
 	for (i=0; line[i]; line[i] == ',' ? i++ : *line++);
 
 	return i + 1;
 }
 
-size_t get_line_count(FILE *fp) {
+int get_line_count(FILE *fp) {
 	fseek(fp, 0, SEEK_SET);
 
 	char * line = NULL;
 	size_t len = 0;
 	ssize_t read;
-	size_t lines = 0;
+	int lines = 0;
 
 	while ((read = getline(&line, &len, fp)) != -1) {
 		lines++;
@@ -57,7 +52,7 @@ size_t get_line_count(FILE *fp) {
 	return lines;
 }
 
-void populate_matrix_from_file(double **matrix, size_t cols, FILE *fp) {
+void populateMatrixFromFile(Matrix* matrix, FILE *fp) {
 	fseek(fp, 0, SEEK_SET);
 
 	char *line = NULL;
@@ -72,12 +67,12 @@ void populate_matrix_from_file(double **matrix, size_t cols, FILE *fp) {
 		trim(line, '\n');
 
 		// Split line by the delimeter
-		char **dest = malloc(sizeof(char *) * cols);
+		char **dest = malloc(sizeof(char *) * matrix->cols);
 		split(dest, line, ",");
 
 		// Add values to matrix and cast to double
-		for (col = 0; col < cols; col++) {
-			matrix[row][col] = atof(dest[col]);
+		for (col = 0; col < matrix->cols; col++) {
+			matrix->data[row][col] = atof(dest[col]);
 		}
 
 		row++;
@@ -86,6 +81,126 @@ void populate_matrix_from_file(double **matrix, size_t cols, FILE *fp) {
 	if (line) {
 		free(line);
 	}
+}
+
+void transposeMatrix(Matrix* srcMatrix, Matrix* destMatrix) {
+	for (int i = 0; i < srcMatrix->rows; i++) {
+		for (int j = 0; j < srcMatrix->cols; j++) {
+			destMatrix->data[j][i] = srcMatrix->data[i][j];
+		}
+	}
+}
+
+void rowCrossProduct(Matrix* srcMatrix, double* destArray, int row) {
+	for (int i = 0; i < srcMatrix->cols; i++) {
+		destArray[i] = srcMatrix->data[row][i];
+	}
+}
+
+void colCrossProduct(Matrix* srcMatrix, double* destArray, int col) {
+	for (int j = 0; j < srcMatrix->rows; j++) {
+		destArray[j] = srcMatrix->data[j][col];
+	}
+}
+
+double arrayDotProduct(double *a, double *b, int n) {
+	double sum = 0.0;
+
+	for (int i = 0; i < n; i++) {
+		sum += a[i] * b[i];
+	}
+
+	return sum;
+}
+
+void matrixDotProduct(Matrix* destMatrix, Matrix* matrixA, Matrix* matrixB, int features, int rows, int cols)
+{
+	double rowArray[rows];
+	double colArray[cols];
+
+	for (int i = 0; i < rows; i++) {
+		rowCrossProduct(matrixA, rowArray, i);
+
+		for (int j = 0; j < cols; j++) {
+			colCrossProduct(matrixB, colArray, j);
+
+			destMatrix->data[i][j] = arrayDotProduct(rowArray, colArray, features);
+		}
+	}
+}
+
+/**
+ *
+ * @param R the matrix to be factorized, dimension N x M
+ * @param P an initial matrix of dimension N x K
+ * @param Q an initial matrix of dimension M x K
+ * @param N
+ * @param M
+ * @param K
+ */
+void factorizeMatrix(Matrix* inputMatrix, Matrix* pMatrix, Matrix* qMatrix, Matrix* outputMatrix, int rows, int cols, int features) {
+	int steps = 5000;
+	double alpha = 0.0002;
+	double beta = 0.02;
+
+	Matrix* qtMatrix = malloc(sizeof(Matrix));
+	initMatrix(qtMatrix, qMatrix->cols, qMatrix->rows);
+	transposeMatrix(qMatrix, qtMatrix);
+
+	int step, i, j, h;
+	for (step = 0; step < steps; step++) {
+		for (i = 0; i < rows; i++) {
+			for (j = 0; j < cols; j++) {
+				if (inputMatrix->data[i][j] > 0) {
+					double rowArray[features];
+					double colArray[features];
+
+					rowCrossProduct(pMatrix, rowArray, i);
+					colCrossProduct(qtMatrix, colArray, j);
+
+					// eij = R[i][j] - numpy.dot(P[i,:],Q[:,j])
+					double eij = inputMatrix->data[i][j] - arrayDotProduct(rowArray, colArray, features);
+
+					for (h = 0; h < features; h++) {
+						// P[i][h] = P[i][h] + alpha * (2 * eij * Q[h][j] - beta * P[i][h])
+						pMatrix->data[i][h] = pMatrix->data[i][h] + alpha * (2 * eij * qtMatrix->data[h][j] - beta * pMatrix->data[i][h]);
+
+						// Q[h][j] = Q[h][j] + alpha * (2 * eij * P[i][h] - beta * Q[h][j])
+						qtMatrix->data[h][j] = qtMatrix->data[h][j] + alpha * (2 * eij * pMatrix->data[i][h] - beta * qtMatrix->data[h][j]);
+					}
+				}
+			}
+		}
+
+		double e = 0.0;
+
+		for (i = 0; i < rows; i++) {
+			for (j = 0; j < cols; j++) {
+				if (inputMatrix->data[i][j] > 0) {
+					double rowArray[features];
+					double colArray[features];
+
+					rowCrossProduct(pMatrix, rowArray, i);
+					colCrossProduct(qtMatrix, colArray, j);
+					double eij = inputMatrix->data[i][j] - arrayDotProduct(rowArray, colArray, features);
+
+					e = e + pow(eij, 2);
+
+					for (h = 0; h < features; h++) {
+						e = e + (beta/2) * (pow(pMatrix->data[i][h], 2) + pow(qtMatrix->data[h][j], 2));
+					}
+				}
+			}
+		}
+
+		if (e < 0.001) {
+			break;
+		}
+	}
+
+	matrixDotProduct(outputMatrix, pMatrix, qtMatrix, features, rows, cols);
+
+	freeMatrix(qtMatrix);
 }
 
 int main(int argc, char **argv) {
@@ -136,72 +251,59 @@ int main(int argc, char **argv) {
 		exit( 0 );
 	}
 
-	double **R;
-	double **P;
-	double **Q;
-	double **rN;
+	int cols = get_line_width(fp_in);
+	int rows = get_line_count(fp_in);
+	int features = 2;
 
-	size_t cols = get_line_width(fp_in);
-	size_t rows = get_line_count(fp_in);
-
-	size_t N = rows;
-	size_t M = cols;
-	size_t K = 2;
-
-	R = (double **) matrix_malloc(N, M * sizeof(double));
-
-	populate_matrix_from_file(R, cols, fp_in);
+	Matrix* inputMatrix = malloc(sizeof(Matrix));
+	initMatrix(inputMatrix, rows, cols);
+	populateMatrixFromFile(inputMatrix, fp_in);
 
 	if ( verbose )
 	{
-		printf("rows: %zu\n", N);
-		printf("cols: %zu\n", M);
-		printf("K: %zu\n", K);
+		printf("rows: %d\n", rows);
+		printf("cols: %d\n", cols);
+		printf("features: %d\n", features);
 		printf("\n");
-	}
 
-	if ( verbose )
-	{
-		matrix_print("input", R, N, M);
+		printf("input\n");
+		printMatrix(inputMatrix);
 	}
 
 	// seed random number generator
 	srand(time(NULL));
 
-	P = (double **) matrix_malloc(N, K * sizeof(double));
-	fill_matrix(P, N, K);
+	Matrix* pMatrix = malloc(sizeof(Matrix));
+	initMatrix(pMatrix, rows, features);
+	fillMatrix(pMatrix);
 
 	if ( verbose )
 	{
-		matrix_print("P", P, N, K);
+		printf("P\n");
+		printMatrix(pMatrix);
 	}
 
-	Q = (double **) matrix_malloc(M, K * sizeof(double));
-	fill_matrix(Q, M, K);
+	Matrix* qMatrix = malloc(sizeof(Matrix));
+	initMatrix(qMatrix, cols, features);
+	fillMatrix(qMatrix);
 
 	if ( verbose )
 	{
-		matrix_print("Q", Q, M, K);
+		printf("Q\n");
+		printMatrix(qMatrix);
 	}
 
-	rN = (double **) matrix_malloc(N, M * sizeof(double));
+	Matrix* outputMatrix = malloc(sizeof(Matrix));
+	initMatrix(outputMatrix, rows, cols);
 
-	matrix_factorize(R, P, Q, rN, N, M, K);
+	factorizeMatrix(inputMatrix, pMatrix, qMatrix, outputMatrix, rows, cols, features);
 
-	int i;
-	int j;
-
-	for (i = 0; i < N; i++)
-	{
-		for (j = 0; j < M; j++)
-		{
-			if (j == 0)
-			{
-				fprintf(fp_out, "%f", rN[i][j]);
-			}
-			else
-			{
-				fprintf(fp_out, ",%f", rN[i][j]);
+	for (int i = 0; i < rows; i++) {
+		for (int j = 0; j < cols; j++) {
+			if (j == 0) {
+				fprintf(fp_out, "%f", outputMatrix->data[i][j]);
+			} else {
+				fprintf(fp_out, ",%f", outputMatrix->data[i][j]);
 			}
 		}
 
@@ -209,14 +311,13 @@ int main(int argc, char **argv) {
 	}
 
 	// All done, close up shop.
-	matrix_free((void**)R);
-	matrix_free((void**)P);
-	matrix_free((void**)Q);
-	matrix_free((void**)rN);
+	freeMatrix(inputMatrix);
+	freeMatrix(pMatrix);
+	freeMatrix(qMatrix);
+	freeMatrix(outputMatrix);
 
 	fclose( fp_in );
 	fclose( fp_out );
 
 	return 0;
 }
-

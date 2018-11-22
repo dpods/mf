@@ -1,14 +1,20 @@
-#ifndef ARRAYS_C
-#define ARRAYS_C
+//
+// Created by David Glassanos on 11/21/18.
+//
 
-#include <stdlib.h>
+#ifndef MF_MATRIX_H
+#define MF_MATRIX_H
 
-void matrix_free(void **a);
+#include <stddef.h>
 
-void** matrix_malloc(size_t numRows, size_t rowSize);
+typedef struct {
+	int rows;
+	int cols;
+	double** data;
+} Matrix;
 
-void matrix_factorize(double** R, double** P, double** Q, double** rN, int N, int M, int K);
+void freeMatrix(Matrix* matrix);
+void printMatrix(Matrix* matrix);
+void initMatrix(Matrix* matrix, int rows, int cols);
 
-void matrix_print(char *str, double** p, int N, int M);
-
-#endif
+#endif //MF_MATRIX_H
