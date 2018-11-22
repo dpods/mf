@@ -56,4 +56,4 @@ $ ./bin/mf -i matrix.csv
 3.210711,1.654635,4.814942,4.002566
 ```
 
-Note: Your results may vary. The factorization uses a random number generator to find starting values for the factoried matrix. 
+Note: Your results may vary. The factorization uses a random number generator to find starting values for the factorized matrix.

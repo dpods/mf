@@ -1,7 +1,7 @@
 
-.PHONY: mf clean
+.PHONY: build clean
 
-mf: clean
+build: clean
 	gcc -o ./bin/mf src/mf.c -I src/ src/matrix.c src/str.c
 
 clean:
